@@ -24,6 +24,8 @@ public:
     void Kill() { alive = false; }
 
 protected:
-    // Returns true and calls OnHitTile if a tile was hit along vel direction
+    Vector2 prev_pos = {0.f, 0.f};
+
+    // Raycast from prev_pos to pos; hits first tile found. Returns true on hit.
     bool CheckTileHit(std::vector<Asteroid>& asteroids);
 };

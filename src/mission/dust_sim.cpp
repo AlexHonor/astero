@@ -1,6 +1,7 @@
 #include "dust_sim.h"
 #include <cmath>
 #include <algorithm>
+#include <cstdlib>
 
 Color DustSim::MatDustColor(TileMat m) {
     switch (m) {
@@ -37,19 +38,70 @@ void DustSim::AddDust(Vector2 world_pos, TileMat mat, Vector2 impulse) {
     active.insert(idx);
 }
 
+static float frand() { return (float)(rand() % 1000) / 1000.f; }  // [0,1)
+
 void DustSim::AddExplosionDust(Vector2 center, float radius, TileMat mat) {
-    int cell_r = (int)(radius / CELL_SIZE) + 1;
+    // Primary blast ring: dense smoke spread across a larger area
+    int cell_r = (int)(radius / CELL_SIZE) + 3;
     float cx = center.x / CELL_SIZE;
     float cy = center.y / CELL_SIZE;
     for (int dr = -cell_r; dr <= cell_r; dr++) {
         for (int dc = -cell_r; dc <= cell_r; dc++) {
-            if (dc*dc + dr*dr > cell_r * cell_r) continue;
-            float dist = sqrtf((float)(dc*dc + dr*dr));
-            if (dist < 0.01f) continue;
-            Vector2 outward = {(float)dc / dist * 2.f, (float)dr / dist * 2.f};
-            AddDust({(cx + dc) * CELL_SIZE, (cy + dr) * CELL_SIZE}, mat,
-                    {outward.x * 200.f, outward.y * 200.f});
+            float dist2 = (float)(dc*dc + dr*dr);
+            if (dist2 > (float)(cell_r * cell_r)) continue;
+            float dist = sqrtf(dist2);
+
+            // Random jitter on position to break up the circle
+            float jitter_x = (frand() - 0.5f) * 1.6f;
+            float jitter_y = (frand() - 0.5f) * 1.6f;
+            float wx = (cx + dc + jitter_x) * CELL_SIZE;
+            float wy = (cy + dr + jitter_y) * CELL_SIZE;
+
+            // Outward impulse, stronger at center, random magnitude variation
+            Vector2 outward = {0.f, 0.f};
+            if (dist > 0.01f) {
+                outward = {(float)dc / dist, (float)dr / dist};
+            } else {
+                float angle = frand() * 6.2832f;
+                outward = {cosf(angle), sinf(angle)};
+            }
+            float speed = (200.f + frand() * 300.f) * (1.f - dist / (cell_r + 1));
+            Vector2 impulse = {outward.x * speed, outward.y * speed};
+
+            int col = (int)(wx / CELL_SIZE);
+            int row = (int)(wy / CELL_SIZE);
+            if (!InBounds(col, row)) continue;
+            int idx = row * GRID_W + col;
+            DustCell& c = grid[idx];
+            // Add dense smoke with random density variation
+            float add = 0.7f + frand() * 0.3f;
+            c.density = fminf(1.f, c.density + add);
+            c.color   = MatDustColor(mat);
+            c.vx      = impulse.x * 0.01f + (frand() - 0.5f) * 0.3f;
+            c.vy      = impulse.y * 0.01f + (frand() - 0.5f) * 0.3f;
+            active.insert(idx);
         }
+    }
+
+    // Secondary lingering smoke cloud: slower, denser, fills interior
+    int smoke_r = cell_r + 2;
+    for (int i = 0; i < 120; i++) {
+        float angle = frand() * 6.2832f;
+        float r     = frand() * smoke_r;
+        float wx    = (cx + cosf(angle) * r) * CELL_SIZE;
+        float wy    = (cy + sinf(angle) * r) * CELL_SIZE;
+        int col = (int)(wx / CELL_SIZE);
+        int row = (int)(wy / CELL_SIZE);
+        if (!InBounds(col, row)) continue;
+        int idx = row * GRID_W + col;
+        DustCell& c = grid[idx];
+        c.density = fminf(1.f, c.density + 0.5f + frand() * 0.5f);
+        c.color   = MatDustColor(mat);
+        // Slow outward drift with upward bias
+        float slow = frand() * 0.4f;
+        c.vx = cosf(angle) * slow + (frand() - 0.5f) * 0.2f;
+        c.vy = sinf(angle) * slow - frand() * 0.3f;  // slight upward
+        active.insert(idx);
     }
 }
 
@@ -66,7 +118,7 @@ void DustSim::Step() {
         DustCell& c = grid[idx];
 
         // 1. Decay
-        c.density *= 0.97f * extra_decay;
+        c.density *= 0.985f * extra_decay;
 
         // 2. Drift
         int drift_col = col + (int)roundf(c.vx);
