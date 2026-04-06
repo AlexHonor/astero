@@ -7,6 +7,7 @@
 #include "mission/weapon_manager.h"
 #include "mission/minimap.h"
 #include "mission/lighting.h"
+#include "mission/dust_sim.h"
 #include <vector>
 
 class Game;
@@ -25,6 +26,7 @@ private:
     WeaponManager         weapons;
     Minimap               minimap;
     LightingSystem        lighting;
+    DustSim               dust;
     int                   ship_light_id  = -1;
     int                   ambient_light_id = -1;
     std::vector<Asteroid> asteroids;

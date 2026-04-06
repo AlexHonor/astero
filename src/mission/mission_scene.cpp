@@ -38,6 +38,7 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
 
     chunks.clear();
     minimap.Init();
+    dust.Init(GetScreenWidth(), GetScreenHeight());
     lighting.Init(GetScreenWidth(), GetScreenHeight());
     ship_light_id    = lighting.AddLight(ship.pos, cfg.flashlight_range,
                                          {255, 240, 200, 200});
@@ -60,6 +61,8 @@ void MissionScene::SpawnCallback(Vector2 pos, TileMat mat, Vector2 impulse, bool
         c.vel      = impulse;
         c.material = mat;
         chunks.push_back(c);
+    } else {
+        dust.AddDust(pos, mat, impulse);
     }
 }
 
@@ -76,6 +79,11 @@ void MissionScene::Update(float dt) {
     weapons.HandleInput(ship.pos, cam);
     weapons.Update(dt);
 
+    // Explosion dust
+    for (auto& e : weapons.explosions)
+        if (e.timer > 0.38f)  // only on the first tick
+            dust.AddExplosionDust(e.pos, e.radius, TileMat::Rock);
+
     // Move ship lights
     lighting.MoveLight(ship_light_id, ship.pos);
     lighting.MoveLight(ambient_light_id, ship.pos);
@@ -90,6 +98,7 @@ void MissionScene::Update(float dt) {
         }
     }
     lighting.Update(dt);
+    dust.Update(dt);
 
     // Smooth camera follow
     cam.target.x += (ship.pos.x - cam.target.x) * 5.f * dt;
@@ -233,6 +242,7 @@ void MissionScene::Draw() {
 
     EndMode2D();
 
+    dust.Draw(cam);
     lighting.Draw(cam);
 
     minimap.Update(asteroids, chunks, ship);
@@ -244,4 +254,5 @@ void MissionScene::Draw() {
 void MissionScene::Shutdown() {
     minimap.Shutdown();
     lighting.Shutdown();
+    dust.Shutdown();
 }
