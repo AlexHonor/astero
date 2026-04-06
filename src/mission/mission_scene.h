@@ -5,6 +5,8 @@
 #include "mission/chunk.h"
 #include "mission/ship.h"
 #include "mission/weapon_manager.h"
+#include "mission/minimap.h"
+#include "mission/lighting.h"
 #include <vector>
 
 class Game;
@@ -21,6 +23,10 @@ private:
 
     Ship                  ship;
     WeaponManager         weapons;
+    Minimap               minimap;
+    LightingSystem        lighting;
+    int                   ship_light_id  = -1;
+    int                   ambient_light_id = -1;
     std::vector<Asteroid> asteroids;
     std::vector<Chunk>    chunks;
     Camera2D              cam = {0};

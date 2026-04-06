@@ -37,6 +37,12 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
     RewireSpawnCallbacks();
 
     chunks.clear();
+    minimap.Init();
+    lighting.Init(GetScreenWidth(), GetScreenHeight());
+    ship_light_id    = lighting.AddLight(ship.pos, cfg.flashlight_range,
+                                         {255, 240, 200, 200});
+    ambient_light_id = lighting.AddLight(ship.pos, 80.f,
+                                         {180, 180, 220, 80});
 }
 
 void MissionScene::RewireSpawnCallbacks() {
@@ -69,6 +75,21 @@ void MissionScene::Update(float dt) {
     ship.Update(dt, cam);
     weapons.HandleInput(ship.pos, cam);
     weapons.Update(dt);
+
+    // Move ship lights
+    lighting.MoveLight(ship_light_id, ship.pos);
+    lighting.MoveLight(ambient_light_id, ship.pos);
+
+    // Add flare lights from newly-landed flares
+    for (auto& p : weapons.projectiles) {
+        if (auto* f = dynamic_cast<FlareProjectile*>(p.get())) {
+            if (f->landed && f->light_id == -1) {
+                f->light_id = lighting.AddLight(
+                    f->pos, 200.f, {255, 200, 130, 220}, f->light_life, true);
+            }
+        }
+    }
+    lighting.Update(dt);
 
     // Smooth camera follow
     cam.target.x += (ship.pos.x - cam.target.x) * 5.f * dt;
@@ -212,8 +233,15 @@ void MissionScene::Draw() {
 
     EndMode2D();
 
+    lighting.Draw(cam);
+
+    minimap.Update(asteroids, chunks, ship);
     DrawHUD();
     weapons.DrawHUD();
+    minimap.Draw(GetScreenWidth() - Minimap::MAP_SIZE - 10, 10);
 }
 
-void MissionScene::Shutdown() {}
+void MissionScene::Shutdown() {
+    minimap.Shutdown();
+    lighting.Shutdown();
+}
