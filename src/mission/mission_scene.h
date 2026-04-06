@@ -4,6 +4,7 @@
 #include "mission/asteroid.h"
 #include "mission/chunk.h"
 #include "mission/ship.h"
+#include "mission/weapon_manager.h"
 #include <vector>
 
 class Game;
@@ -19,6 +20,7 @@ private:
     Game* game = nullptr;
 
     Ship                  ship;
+    WeaponManager         weapons;
     std::vector<Asteroid> asteroids;
     std::vector<Chunk>    chunks;
     Camera2D              cam = {0};

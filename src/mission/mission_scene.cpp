@@ -23,6 +23,12 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
     // Ship
     ship.Init(cfg, {200.f, WORLD_SIZE / 2.f});
 
+    // Weapons
+    weapons.Init(cfg);
+    weapons.asteroids = &asteroids;
+    weapons.chunks    = &chunks;
+    weapons.ship_pos  = &ship.pos;
+
     // Generate asteroid field
     FieldConfig field_cfg;
     field_cfg.num_asteroids = 12;
@@ -61,6 +67,8 @@ void MissionScene::Update(float dt) {
 
     // Update ship
     ship.Update(dt, cam);
+    weapons.HandleInput(ship.pos, cam);
+    weapons.Update(dt);
 
     // Smooth camera follow
     cam.target.x += (ship.pos.x - cam.target.x) * 5.f * dt;
@@ -200,10 +208,12 @@ void MissionScene::Draw() {
     for (auto& c : chunks)
         c.Draw();
     ship.Draw();
+    weapons.Draw();
 
     EndMode2D();
 
     DrawHUD();
+    weapons.DrawHUD();
 }
 
 void MissionScene::Shutdown() {}
