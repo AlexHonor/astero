@@ -22,6 +22,7 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
 
     // Ship
     ship.Init(cfg, {200.f, WORLD_SIZE / 2.f});
+    ftl.Init(cfg.ftl_charge_time);
 
     // Weapons
     weapons.Init(cfg);
@@ -135,6 +136,17 @@ void MissionScene::Update(float dt) {
         }
     }
 
+    // FTL
+    if (IsKeyPressed(KEY_F) && !ftl.charging && !ftl.on_cooldown)
+        ftl.TryActivate();
+
+    // Lock ship movement while charging
+    if (ftl.charging) {
+        ship.vel = {0, 0};
+    }
+
+    ftl.Update(dt);
+
     // Death / escape
     if (!ship.alive) {
         MissionResult result;
@@ -142,14 +154,12 @@ void MissionScene::Update(float dt) {
         game->EndMission(result);
         return;
     }
-    if (IsKeyPressed(KEY_F)) {
-        // FTL instant for now — real charge timer in Phase 8
+    if (ftl.IsComplete()) {
         MissionResult result;
-        result.player_died = false;
+        result.player_died      = false;
         result.ship_hp_fraction = ship.hp / (float)ship.max_hp;
-        for (auto& [mat, cnt] : GameState::Get().inventory)
-            ;  // resources already accumulated via SpawnCallback→collect
         game->EndMission(result);
+        return;
     }
 }
 
@@ -168,6 +178,7 @@ void MissionScene::CheckShipAsteroidCollision() {
                     float impact = Vector2Length(Vector2Subtract(ship.vel, ast.velocity));
                     if (impact > 20.f) {
                         ship.TakeDamage((int)(impact * 0.1f));
+                        ftl.Interrupt();
                     }
                     // Push ship away
                     Vector2 push = Vector2Normalize(Vector2Subtract(ship.pos, tp));
@@ -217,8 +228,25 @@ void MissionScene::DrawHUD() const {
     int secs = (int)(mission_timer) % 60;
     DrawText(TextFormat("%02d:%02d", mins, secs), sw / 2 - 24, 10, 20, WHITE);
 
+    // FTL system (bottom right)
+    int ftl_x = sw - 160, ftl_y = GetScreenHeight() - 80;
+    DrawRectangle(ftl_x, ftl_y, 150, 30, DARKGRAY);
+    if (ftl.charging) {
+        int fill = (int)(ftl.charge_progress * 150);
+        DrawRectangle(ftl_x, ftl_y, fill, 30, SKYBLUE);
+        DrawText("FTL CHARGING...", ftl_x + 4, ftl_y + 8, 12, BLACK);
+    } else if (ftl.on_cooldown) {
+        DrawRectangle(ftl_x, ftl_y, 150, 30, Color{60, 30, 30, 255});
+        DrawText(TextFormat("FTL COOLDOWN %.0fs", ftl.cooldown_left),
+                 ftl_x + 4, ftl_y + 8, 12, RED);
+    } else {
+        DrawRectangle(ftl_x, ftl_y, 150, 30, Color{20, 60, 60, 255});
+        DrawText("F  - FTL ESCAPE", ftl_x + 4, ftl_y + 8, 12, SKYBLUE);
+    }
+    DrawRectangleLines(ftl_x, ftl_y, 150, 30, WHITE);
+
     // Controls hint
-    DrawText("WASD: move | F: FTL escape | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
+    DrawText("WASD: move | 1-9: weapon | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
 
     // Boundary warning
     bool near_boundary =

@@ -8,6 +8,7 @@
 #include "mission/minimap.h"
 #include "mission/lighting.h"
 #include "mission/dust_sim.h"
+#include "mission/ftl.h"
 #include <vector>
 
 class Game;
@@ -27,6 +28,7 @@ private:
     Minimap               minimap;
     LightingSystem        lighting;
     DustSim               dust;
+    FTLSystem             ftl;
     int                   ship_light_id  = -1;
     int                   ambient_light_id = -1;
     std::vector<Asteroid> asteroids;
