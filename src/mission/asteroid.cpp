@@ -61,10 +61,12 @@ void Asteroid::Draw() const {
 
             Vector2 wp = TileWorldPos(c, r);
             float half = TILE_SIZE * 0.5f;
+            // Place rect so its top-left is at wp, pivot at center, rotate with asteroid
             Rectangle rect = {wp.x - half, wp.y - half, TILE_SIZE, TILE_SIZE};
+            Vector2 origin = {half, half};
 
             Color col = IsTileVisible(c, r) ? MaterialColor(t.material) : fog_color;
-            DrawRectangleRec(rect, col);
+            DrawRectanglePro(rect, origin, rotation * RAD2DEG, col);
         }
     }
 }
