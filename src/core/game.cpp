@@ -21,6 +21,8 @@ void Game::Init() {
 }
 
 void Game::Update(float dt) {
+    if (IsKeyPressed(KEY_GRAVE)) show_fps = !show_fps;
+
     switch (current_scene) {
         case Scene::MISSION: mission->Update(dt); break;
         case Scene::BASE:    base->Update(dt);    break;
@@ -33,6 +35,14 @@ void Game::Draw() {
         case Scene::MISSION: mission->Draw(); break;
         case Scene::BASE:    base->Draw();    break;
         default: break;
+    }
+
+    if (show_fps) {
+        int fps = GetFPS();
+        float ms = 1000.f / (fps > 0 ? fps : 1);
+        Color col = fps >= 55 ? GREEN : (fps >= 30 ? YELLOW : RED);
+        DrawText(TextFormat("FPS: %d  (%.1f ms)", fps, ms),
+                 GetScreenWidth() - 180, GetScreenHeight() - 22, 14, col);
     }
 }
 

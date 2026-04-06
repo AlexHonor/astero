@@ -26,4 +26,5 @@ private:
     Scene current_scene = Scene::BASE;
     std::unique_ptr<MissionScene> mission;
     std::unique_ptr<BaseScene>    base;
+    bool show_fps = false;
 };
