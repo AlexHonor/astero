@@ -18,6 +18,7 @@ void Projectile::Update(float dt, std::vector<Asteroid>& asteroids,
 
 void Projectile::Draw() const {
     if (!alive) return;
+    DrawLine((int)pos.x, (int)pos.y, (int)(pos.x - 0.03 * vel.x), (int)(pos.y - 0.03 * vel.y), YELLOW);
     DrawCircle((int)pos.x, (int)pos.y, 3.f, YELLOW);
 }
 

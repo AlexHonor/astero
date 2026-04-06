@@ -1,5 +1,6 @@
 #include "intel_drone.h"
 #include "mission/asteroid.h"
+#include <cmath>
 
 void IntelDrone::Draw() const {
     if (!alive) return;
@@ -32,6 +33,13 @@ void IntelDrone::Update(float dt, std::vector<Asteroid>& asteroids,
                         if (Vector2Distance(pos, tp) < TILE_SIZE * 1.5f) {
                             landed = true;
                             vel    = {0, 0};
+                            // Compute attachment in asteroid local space
+                            attached_ast_id = ast.id;
+                            float dx =  pos.x - ast.center.x;
+                            float dy =  pos.y - ast.center.y;
+                            float cs = cosf(-ast.rotation);
+                            float sn = sinf(-ast.rotation);
+                            ast_local_offset = {dx * cs - dy * sn, dx * sn + dy * cs};
                             DoScan(asteroids);
                             return;
                         }
@@ -39,8 +47,20 @@ void IntelDrone::Update(float dt, std::vector<Asteroid>& asteroids,
                 }
             }
         }
+    } else {
+        // Track the host asteroid — follow its rotation and drift
+        if (attached_ast_id >= 0) {
+            for (auto& ast : asteroids) {
+                if (ast.id == attached_ast_id) {
+                    float cs = cosf(ast.rotation);
+                    float sn = sinf(ast.rotation);
+                    pos.x = ast.center.x + ast_local_offset.x * cs - ast_local_offset.y * sn;
+                    pos.y = ast.center.y + ast_local_offset.x * sn + ast_local_offset.y * cs;
+                    break;
+                }
+            }
+        }
     }
-    // Landed — stay forever until mission ends
 }
 
 void IntelDrone::DoScan(std::vector<Asteroid>& asteroids) {

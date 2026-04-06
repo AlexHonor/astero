@@ -4,6 +4,7 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 static constexpr float WORLD_SIZE        = 4000.f;
 static constexpr float COLLECT_RADIUS    = 24.f;
@@ -111,12 +112,16 @@ void MissionScene::Update(float dt) {
     lighting.MoveLight(ship_light_id, ship.pos);
     lighting.MoveLight(ambient_light_id, ship.pos);
 
-    // Add flare lights from newly-landed flares
+    // Add/update flare lights — permanent, tracked to asteroid position
     for (auto& p : weapons.projectiles) {
         if (auto* f = dynamic_cast<FlareProjectile*>(p.get())) {
-            if (f->landed && f->light_id == -1) {
-                f->light_id = lighting.AddLight(
-                    f->pos, 200.f, {255, 200, 130, 220}, f->light_life, true);
+            if (f->landed) {
+                if (f->light_id == -1) {
+                    f->light_id = lighting.AddLight(
+                        f->pos, 200.f, {255, 200, 130, 220}, -1.f, true);
+                } else {
+                    lighting.MoveLight(f->light_id, f->pos);
+                }
             }
         }
     }
@@ -162,6 +167,9 @@ void MissionScene::Update(float dt) {
             boundary_dmg_timer = 0.f;
         }
     }
+
+    // Resource panel toggle
+    if (IsKeyPressed(KEY_P)) show_resource_panel = !show_resource_panel;
 
     // FTL
     if (IsKeyPressed(KEY_F) && !ftl.charging && !ftl.on_cooldown)
@@ -273,7 +281,7 @@ void MissionScene::DrawHUD() const {
     DrawRectangleLines(ftl_x, ftl_y, 150, 30, WHITE);
 
     // Controls hint
-    DrawText("WASD: move | 1-9: weapon | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
+    DrawText("WASD: move | 1-9: weapon | P: resources | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
 
     // Boundary warning
     bool near_boundary =
@@ -282,6 +290,82 @@ void MissionScene::DrawHUD() const {
     if (near_boundary && ((int)(mission_timer * 4) % 2 == 0)) {
         DrawRectangleLinesEx({2, 2, (float)sw - 4, (float)GetScreenHeight() - 4}, 4, RED);
         DrawText("BOUNDARY WARNING", sw / 2 - 90, 36, 16, RED);
+    }
+}
+
+void MissionScene::DrawResourcePanel() const {
+    struct MatInfo {
+        TileMat mat;
+        const char* name;
+        const char* desc;
+    };
+    static const MatInfo entries[] = {
+        { TileMat::Rock,     "Rock",     "Common asteroid crust. Fragile, no value."          },
+        { TileMat::Iron,     "Iron",     "Structural ore. Moderate toughness."                },
+        { TileMat::Copper,   "Copper",   "Conductive ore. Hard to fragment."                  },
+        { TileMat::Silicon,  "Silicon",  "Electronic mineral. Brittle, high chunk yield."     },
+        { TileMat::Titanium, "Titanium", "Dense alloy. Heavily armored, blast-resistant."     },
+        { TileMat::Gold,     "Gold",     "Precious metal. Most valuable ore in the belt."     },
+    };
+    static constexpr int N = 6;
+
+    const int sw = GetScreenWidth();
+    const int sh = GetScreenHeight();
+    const int PW = 330;              // panel width
+    const int ROW_H = 52;
+    const int TITLE_H = 28;
+    const int PAD = 10;
+    const int PH = TITLE_H + N * ROW_H + PAD;
+    const int px = (sw - PW) / 2;
+    const int py = (sh - PH) / 2;
+
+    // Background
+    DrawRectangle(px, py, PW, PH, Color{15, 15, 25, 230});
+    DrawRectangleLines(px, py, PW, PH, Color{120, 120, 160, 200});
+
+    // Title
+    DrawText("RESOURCE GUIDE", px + PAD, py + 7, 14, Color{180, 180, 255, 255});
+    DrawText("[P] close", px + PW - 72, py + 7, 12, DARKGRAY);
+
+    for (int i = 0; i < N; i++) {
+        const MatInfo& mi  = entries[i];
+        Color col          = MaterialColor(mi.mat);
+        int   ry           = py + TITLE_H + i * ROW_H;
+        int   base_val     = MaterialValue(mi.mat);
+        int   hp           = MaterialBaseHP(mi.mat);
+        int   armor        = MaterialArmor(mi.mat);
+        int   exp_pct      = (int)(MaterialExpResist(mi.mat)  * 100.f + 0.5f);
+        int   ric_pct      = (int)(MaterialRicochet(mi.mat)   * 100.f + 0.5f);
+
+        // Separator
+        DrawLine(px + 4, ry, px + PW - 4, ry, Color{50, 50, 70, 200});
+
+        // Color swatch
+        DrawRectangle(px + PAD, ry + 8, 16, 16, col);
+        DrawRectangleLines(px + PAD, ry + 8, 16, 16, Color{200, 200, 200, 120});
+
+        // Name
+        DrawText(mi.name, px + PAD + 22, ry + 8, 14, WHITE);
+
+        // Description
+        DrawText(mi.desc, px + PAD + 22, ry + 24, 11, Color{160, 160, 160, 255});
+
+        // Properties
+        char props[80];
+        snprintf(props, sizeof(props),
+                 "HP:%-4d  Armor:%d  ExpRes:%2d%%  Ricochet:%2d%%",
+                 hp, armor, exp_pct, ric_pct);
+        DrawText(props, px + PAD, ry + 38, 10, Color{120, 180, 120, 255});
+
+        // Price (right-aligned)
+        char price_str[32];
+        if (base_val > 0)
+            snprintf(price_str, sizeof(price_str), "%dcr/unit", base_val);
+        else
+            snprintf(price_str, sizeof(price_str), "no value");
+        int price_w = MeasureText(price_str, 12);
+        Color price_col = base_val > 0 ? Color{255, 215, 0, 255} : DARKGRAY;
+        DrawText(price_str, px + PW - price_w - PAD, ry + 8, 12, price_col);
     }
 }
 
@@ -304,6 +388,7 @@ void MissionScene::Draw() {
     DrawHUD();
     weapons.DrawHUD();
     minimap.Draw(GetScreenWidth() - Minimap::MAP_SIZE - 10, 10);
+    if (show_resource_panel) DrawResourcePanel();
 }
 
 void MissionScene::Shutdown() {

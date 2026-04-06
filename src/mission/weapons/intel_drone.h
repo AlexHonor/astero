@@ -12,9 +12,11 @@ struct ScanReport {
 
 class IntelDrone : public Projectile {
 public:
-    bool         landed      = false;
-    float        scan_radius = 150.f;
-    ScanReport*  report      = nullptr;   // owned by WeaponManager / MissionScene
+    bool         landed           = false;
+    float        scan_radius      = 150.f;
+    ScanReport*  report           = nullptr;   // owned by WeaponManager / MissionScene
+    int          attached_ast_id  = -1;
+    Vector2      ast_local_offset = {0.f, 0.f};
 
     void Draw() const override;
     void Update(float dt, std::vector<Asteroid>& asteroids,

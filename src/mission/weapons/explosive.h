@@ -58,12 +58,14 @@ public:
 // Timed mine: sticks to surface, detonates after fuse or on signal
 class TimedMine : public Projectile {
 public:
-    float  fuse_time    = 2.f;
-    float  fuse_elapsed = 0.f;
-    bool   embedded     = false;
-    float  exp_radius   = 120.f;
-    int    exp_damage   = 60;
-    bool   detonate_now = false;
+    float  fuse_time         = 2.f;
+    float  fuse_elapsed      = 0.f;
+    bool   embedded          = false;
+    float  exp_radius        = 120.f;
+    int    exp_damage        = 60;
+    bool   detonate_now      = false;
+    int    attached_ast_id   = -1;
+    Vector2 ast_local_offset = {0.f, 0.f};
     std::vector<Explosion>* explosions = nullptr;
 
     void Draw() const override;

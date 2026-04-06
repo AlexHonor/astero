@@ -144,6 +144,13 @@ void TimedMine::Update(float dt, std::vector<Asteroid>& asteroids,
                     if (Vector2Distance(pos, tp) < TILE_SIZE) {
                         embedded = true;
                         vel = {0, 0};
+                        // Compute attachment in asteroid local space
+                        attached_ast_id = ast.id;
+                        float dx =  pos.x - ast.center.x;
+                        float dy =  pos.y - ast.center.y;
+                        float cs = cosf(-ast.rotation);
+                        float sn = sinf(-ast.rotation);
+                        ast_local_offset = {dx * cs - dy * sn, dx * sn + dy * cs};
                         goto done_embed;
                     }
                 }
@@ -151,6 +158,18 @@ void TimedMine::Update(float dt, std::vector<Asteroid>& asteroids,
         }
         done_embed:;
     } else {
+        // Track the host asteroid — update world position to follow rotation/drift
+        if (attached_ast_id >= 0) {
+            for (auto& ast : asteroids) {
+                if (ast.id == attached_ast_id) {
+                    float cs = cosf(ast.rotation);
+                    float sn = sinf(ast.rotation);
+                    pos.x = ast.center.x + ast_local_offset.x * cs - ast_local_offset.y * sn;
+                    pos.y = ast.center.y + ast_local_offset.x * sn + ast_local_offset.y * cs;
+                    break;
+                }
+            }
+        }
         fuse_elapsed += dt;
         if (fuse_elapsed >= fuse_time || detonate_now) {
             if (explosions)

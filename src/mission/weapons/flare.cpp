@@ -1,5 +1,6 @@
 #include "flare.h"
 #include "mission/asteroid.h"
+#include <cmath>
 
 void FlareProjectile::Draw() const {
     if (!alive) return;
@@ -24,7 +25,6 @@ void FlareProjectile::Update(float dt, std::vector<Asteroid>& asteroids,
             // Auto-land wherever it is
             landed = true;
             vel    = {0, 0};
-            light_life = 15.f;
         }
 
         pos.x += vel.x * dt;
@@ -39,7 +39,13 @@ void FlareProjectile::Update(float dt, std::vector<Asteroid>& asteroids,
                     if (Vector2Distance(pos, tp) < TILE_SIZE * 0.8f) {
                         landed = true;
                         vel    = {0, 0};
-                        light_life = 15.f;
+                        // Compute attachment in asteroid local space
+                        attached_ast_id = ast.id;
+                        float dx =  pos.x - ast.center.x;
+                        float dy =  pos.y - ast.center.y;
+                        float cs = cosf(-ast.rotation);
+                        float sn = sinf(-ast.rotation);
+                        ast_local_offset = {dx * cs - dy * sn, dx * sn + dy * cs};
                         goto done;
                     }
                 }
@@ -47,7 +53,18 @@ void FlareProjectile::Update(float dt, std::vector<Asteroid>& asteroids,
         }
         done:;
     } else {
-        light_life -= dt;
-        if (light_life <= 0.f) Kill();
+        // Track the host asteroid — update world position to follow rotation/drift
+        if (attached_ast_id >= 0) {
+            for (auto& ast : asteroids) {
+                if (ast.id == attached_ast_id) {
+                    float cs = cosf(ast.rotation);
+                    float sn = sinf(ast.rotation);
+                    pos.x = ast.center.x + ast_local_offset.x * cs - ast_local_offset.y * sn;
+                    pos.y = ast.center.y + ast_local_offset.x * sn + ast_local_offset.y * cs;
+                    break;
+                }
+            }
+        }
+        // Flares shine forever — no kill timer
     }
 }

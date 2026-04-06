@@ -6,7 +6,10 @@
 
 static constexpr int MIN_CHUNK_TILES = 4;
 
+static int s_next_ast_id = 0;
+
 void Asteroid::Init(int w, int h, Vector2 world_center) {
+    id     = s_next_ast_id++;
     cols   = w;
     rows   = h;
     center = world_center;

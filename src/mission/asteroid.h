@@ -11,6 +11,7 @@ public:
     std::vector<std::vector<Tile>> cells;
     int cols = 0, rows = 0;
 
+    int     id = -1;     // unique identity (assigned in Init)
     Vector2 center;      // world position of grid center
     float   rotation;    // radians
     float   angular_vel; // rad/s
