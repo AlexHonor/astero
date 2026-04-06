@@ -151,7 +151,9 @@ std::vector<std::vector<int>> Asteroid::GetIslands() const {
     return ids;
 }
 
-void Asteroid::CheckSplit(std::vector<Asteroid>& field) {
+std::vector<Asteroid> Asteroid::CheckSplit() {
+    std::vector<Asteroid> children;
+
     auto ids = GetIslands();
 
     // Count tiles per island
@@ -163,43 +165,50 @@ void Asteroid::CheckSplit(std::vector<Asteroid>& field) {
                 counts[ids[r][c]]++;
             }
 
-    if (counts.size() <= 1) return;  // still one body
+    if (counts.size() <= 1) return children;
 
     // Find the largest island — it stays in this asteroid
     int largest_id = 0;
     for (int i = 1; i < (int)counts.size(); i++)
         if (counts[i] > counts[largest_id]) largest_id = i;
 
-    // For each non-largest island:
+    // Snapshot fields we need before any mutation
+    float snap_angular_vel = angular_vel;
+    Vector2 snap_velocity  = velocity;
+    float snap_rotation    = rotation;
+    int snap_cols          = cols;
+    int snap_rows          = rows;
+    Vector2 snap_center    = center;
+
     for (int island = 0; island < (int)counts.size(); island++) {
         if (island == largest_id) continue;
 
         if (counts[island] <= MIN_CHUNK_TILES) {
-            // Too small — emit individual chunks/dust
-            for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
+            for (int r = 0; r < snap_rows; r++)
+                for (int c = 0; c < snap_cols; c++)
                     if (ids[r][c] == island) {
                         DestroyTile(c, r);
                         ids[r][c] = -1;
                     }
         } else {
-            // Spawn a new asteroid with these tiles
             Asteroid child;
             child.on_spawn    = on_spawn;
-            child.angular_vel = angular_vel + ((float)rand()/RAND_MAX - 0.5f) * 0.5f;
-            child.velocity    = {velocity.x + ((float)rand()/RAND_MAX - 0.5f) * 30.f,
-                                 velocity.y + ((float)rand()/RAND_MAX - 0.5f) * 30.f};
-            child.rotation    = rotation;
-            child.Init(cols, rows, center);
+            child.angular_vel = snap_angular_vel + ((float)rand()/RAND_MAX - 0.5f) * 0.5f;
+            child.velocity    = {snap_velocity.x + ((float)rand()/RAND_MAX - 0.5f) * 30.f,
+                                 snap_velocity.y + ((float)rand()/RAND_MAX - 0.5f) * 30.f};
+            child.rotation    = snap_rotation;
+            child.Init(snap_cols, snap_rows, snap_center);
 
-            for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
+            for (int r = 0; r < snap_rows; r++)
+                for (int c = 0; c < snap_cols; c++)
                     if (ids[r][c] == island) {
                         child.cells[r][c] = cells[r][c];
                         cells[r][c].material = TileMat::None;
                     }
 
-            field.push_back(std::move(child));
+            children.push_back(std::move(child));
         }
     }
+
+    return children;
 }

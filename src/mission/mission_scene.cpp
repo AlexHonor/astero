@@ -127,11 +127,16 @@ void MissionScene::Update(float dt) {
     cam.target.x += (ship.pos.x - cam.target.x) * 5.f * dt;
     cam.target.y += (ship.pos.y - cam.target.y) * 5.f * dt;
 
-    // Update asteroids (may grow via splits)
-    for (int i = 0; i < (int)asteroids.size(); i++) {
+    // Update asteroids; collect split children separately to avoid
+    // invalidating 'this' when push_back reallocates the vector
+    std::vector<Asteroid> new_children;
+    int ast_count = (int)asteroids.size();  // snapshot before any appends
+    for (int i = 0; i < ast_count; i++) {
         asteroids[i].Update(dt);
-        asteroids[i].CheckSplit(asteroids);
+        auto children = asteroids[i].CheckSplit();
+        for (auto& c : children) new_children.push_back(std::move(c));
     }
+    for (auto& c : new_children) asteroids.push_back(std::move(c));
     asteroids.erase(
         std::remove_if(asteroids.begin(), asteroids.end(),
                        [](const Asteroid& a){ return !a.IsAlive(); }),

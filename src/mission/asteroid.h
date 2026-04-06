@@ -32,8 +32,8 @@ public:
     void DamageTile(int col, int row, int dmg, int pen);
     void ExplosionDamage(Vector2 world_center, float radius, int dmg, int pen);
 
-    // Island split check — call after any tile destruction
-    void CheckSplit(std::vector<Asteroid>& field);
+    // Island split check — returns newly spawned child asteroids
+    std::vector<Asteroid> CheckSplit();
 
 private:
     void DestroyTile(int col, int row);
