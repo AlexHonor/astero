@@ -17,12 +17,14 @@ public:
     float max_speed;
     float damping = 2.5f;
 
-    bool alive = true;
+    bool  alive             = true;
+    float damage_flash      = 0.f;   // countdown for red tint
 
     void Init(const ShipConfig& cfg, Vector2 start_pos);
     void Update(float dt, Camera2D& cam);
     void Draw() const;
     void TakeDamage(int dmg);
+    void UpdateFlash(float dt);
 
     // Returns a rectangle in world space representing the ship's collision box
     Rectangle Bounds() const {

@@ -77,8 +77,30 @@ void MissionScene::Update(float dt) {
 
     // Update ship
     ship.Update(dt, cam);
+    ship.UpdateFlash(dt);
     weapons.HandleInput(ship.pos, cam);
     weapons.Update(dt);
+
+    // Screen shake from nearby explosions
+    for (auto& e : weapons.explosions) {
+        if (e.timer > 0.38f) {  // first tick
+            float dist = Vector2Distance(e.pos, ship.pos);
+            if (dist < e.radius * 3.f) {
+                float strength = 1.f - (dist / (e.radius * 3.f));
+                shake_trauma = fminf(1.f, shake_trauma + strength * 0.4f);
+            }
+        }
+    }
+    if (shake_trauma > 0.f) {
+        float shake_amt = shake_trauma * shake_trauma * 12.f;
+        cam.offset.x = GetScreenWidth()  / 2.f + ((float)rand()/RAND_MAX - 0.5f) * shake_amt;
+        cam.offset.y = GetScreenHeight() / 2.f + ((float)rand()/RAND_MAX - 0.5f) * shake_amt;
+        shake_trauma -= dt * 3.f;
+        if (shake_trauma < 0.f) {
+            shake_trauma = 0.f;
+            cam.offset   = {GetScreenWidth() / 2.f, GetScreenHeight() / 2.f};
+        }
+    }
 
     // Explosion dust
     for (auto& e : weapons.explosions)

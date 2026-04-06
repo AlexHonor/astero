@@ -37,6 +37,7 @@ private:
 
     float mission_timer = 0.f;
     float boundary_dmg_timer = 0.f;
+    float shake_trauma = 0.f;   // 0–1, decays over time
 
     void SpawnCallback(Vector2 pos, TileMat mat, Vector2 impulse, bool is_chunk);
     void CheckShipAsteroidCollision();

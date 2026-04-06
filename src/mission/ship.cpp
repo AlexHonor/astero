@@ -10,7 +10,8 @@ void Ship::Init(const ShipConfig& cfg, Vector2 start_pos) {
     max_cargo = cfg.max_cargo;
     thrust    = cfg.thrust;
     max_speed = cfg.max_speed;
-    alive     = true;
+    alive         = true;
+    damage_flash  = 0.f;
 }
 
 void Ship::Update(float dt, Camera2D& cam) {
@@ -73,7 +74,8 @@ void Ship::Draw() const {
         p = {pos.x + rx, pos.y + ry};
     }
 
-    DrawTriangle(pts[0], pts[1], pts[2], WHITE);
+    Color ship_col = damage_flash > 0 ? RED : WHITE;
+    DrawTriangle(pts[0], pts[1], pts[2], ship_col);
     DrawTriangleLines(pts[0], pts[1], pts[2], LIGHTGRAY);
 
     // Engine glow when thrusting
@@ -93,8 +95,13 @@ void Ship::Draw() const {
 
 void Ship::TakeDamage(int dmg) {
     hp -= dmg;
+    damage_flash = 0.25f;
     if (hp <= 0) {
         hp = 0;
         alive = false;
     }
+}
+
+void Ship::UpdateFlash(float dt) {
+    if (damage_flash > 0) damage_flash -= dt;
 }
