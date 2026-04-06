@@ -1,6 +1,9 @@
 #pragma once
 #include "raylib.h"
 #include "core/game_state.h"
+#include "mission/asteroid.h"
+#include "mission/chunk.h"
+#include <vector>
 
 class Game;
 
@@ -13,4 +16,10 @@ public:
 
 private:
     Game* game = nullptr;
+
+    std::vector<Asteroid> asteroids;
+    std::vector<Chunk>    chunks;
+    Camera2D              cam = {0};
+
+    void SpawnCallback(Vector2 pos, TileMat mat, Vector2 impulse, bool is_chunk);
 };
