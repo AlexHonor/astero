@@ -1,23 +1,39 @@
 #include "mission_scene.h"
 #include "core/game.h"
 #include "mission/asteroid_generator.h"
+#include "raymath.h"
+#include <algorithm>
+#include <cmath>
+
+static constexpr float WORLD_SIZE        = 4000.f;
+static constexpr float COLLECT_RADIUS    = 24.f;
+static constexpr float BOUNDARY_DAMAGE   = 5.f;   // hp/s outside world
 
 void MissionScene::Init(Game* g, const ShipConfig& cfg) {
     game = g;
-    (void)cfg;
+    mission_timer      = 0.f;
+    boundary_dmg_timer = 0.f;
 
-    // Camera centered in world
-    cam.target   = {2000.f, 2000.f};
+    // Camera
+    cam.target   = {WORLD_SIZE / 2, WORLD_SIZE / 2};
     cam.offset   = {GetScreenWidth() / 2.f, GetScreenHeight() / 2.f};
     cam.rotation = 0.f;
     cam.zoom     = 1.f;
 
+    // Ship
+    ship.Init(cfg, {200.f, WORLD_SIZE / 2.f});
+
     // Generate asteroid field
     FieldConfig field_cfg;
     field_cfg.num_asteroids = 12;
-    AsteroidGenerator::Generate(asteroids, field_cfg, 42);
+    field_cfg.deep_mat_bias = 0.1f * (GameState::Get().run_number - 1);
+    AsteroidGenerator::Generate(asteroids, field_cfg, (uint32_t)GetTime() ^ 0x12345678);
+    RewireSpawnCallbacks();
 
-    // Wire up spawn callbacks
+    chunks.clear();
+}
+
+void MissionScene::RewireSpawnCallbacks() {
     for (auto& ast : asteroids) {
         ast.on_spawn = [this](Vector2 pos, TileMat mat, Vector2 imp, bool is_chunk) {
             SpawnCallback(pos, mat, imp, is_chunk);
@@ -26,39 +42,40 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
 }
 
 void MissionScene::SpawnCallback(Vector2 pos, TileMat mat, Vector2 impulse, bool is_chunk) {
-    if (is_chunk) {
+    if (is_chunk && mat != TileMat::Rock) {
         Chunk c;
         c.pos      = pos;
         c.vel      = impulse;
         c.material = mat;
         chunks.push_back(c);
     }
-    // Dust: will be wired in Phase 7
 }
 
 void MissionScene::Update(float dt) {
+    mission_timer += dt;
+
     // Scroll zoom
     float wheel = GetMouseWheelMove();
-    if (wheel != 0) {
+    if (wheel != 0)
         cam.zoom = fmaxf(0.3f, fminf(3.f, cam.zoom + wheel * 0.1f));
+
+    // Update ship
+    ship.Update(dt, cam);
+
+    // Smooth camera follow
+    cam.target.x += (ship.pos.x - cam.target.x) * 5.f * dt;
+    cam.target.y += (ship.pos.y - cam.target.y) * 5.f * dt;
+
+    // Update asteroids (may grow via splits)
+    for (int i = 0; i < (int)asteroids.size(); i++) {
+        asteroids[i].Update(dt);
+        asteroids[i].CheckSplit(asteroids);
     }
-
-    // Pan camera with arrow keys for now (ship movement comes in Phase 3)
-    float pan = 300.f * dt / cam.zoom;
-    if (IsKeyDown(KEY_LEFT))  cam.target.x -= pan;
-    if (IsKeyDown(KEY_RIGHT)) cam.target.x += pan;
-    if (IsKeyDown(KEY_UP))    cam.target.y -= pan;
-    if (IsKeyDown(KEY_DOWN))  cam.target.y += pan;
-
-    // Update asteroids
-    for (auto& ast : asteroids)
-        ast.Update(dt);
-
-    // Remove dead asteroids
     asteroids.erase(
         std::remove_if(asteroids.begin(), asteroids.end(),
                        [](const Asteroid& a){ return !a.IsAlive(); }),
         asteroids.end());
+    RewireSpawnCallbacks();  // re-wire after potential removals/additions
 
     // Update chunks
     for (auto& c : chunks) c.Update(dt);
@@ -67,11 +84,111 @@ void MissionScene::Update(float dt) {
                        [](const Chunk& c){ return !c.alive; }),
         chunks.end());
 
-    // Return to base on ESC
-    if (IsKeyPressed(KEY_ESCAPE)) {
+    CheckShipAsteroidCollision();
+    CollectNearbyChunks();
+
+    // Boundary damage
+    if (ship.pos.x < 0 || ship.pos.x > WORLD_SIZE ||
+        ship.pos.y < 0 || ship.pos.y > WORLD_SIZE) {
+        boundary_dmg_timer += dt;
+        if (boundary_dmg_timer >= 1.f) {
+            ship.TakeDamage((int)BOUNDARY_DAMAGE);
+            boundary_dmg_timer = 0.f;
+        }
+    }
+
+    // Death / escape
+    if (!ship.alive) {
+        MissionResult result;
+        result.player_died = true;
+        game->EndMission(result);
+        return;
+    }
+    if (IsKeyPressed(KEY_F)) {
+        // FTL instant for now — real charge timer in Phase 8
         MissionResult result;
         result.player_died = false;
+        result.ship_hp_fraction = ship.hp / (float)ship.max_hp;
+        for (auto& [mat, cnt] : GameState::Get().inventory)
+            ;  // resources already accumulated via SpawnCallback→collect
         game->EndMission(result);
+    }
+}
+
+void MissionScene::CheckShipAsteroidCollision() {
+    Rectangle ship_box = ship.Bounds();
+
+    for (auto& ast : asteroids) {
+        for (int r = 0; r < ast.rows; r++) {
+            for (int c = 0; c < ast.cols; c++) {
+                if (ast.cells[r][c].material == TileMat::None) continue;
+                Vector2 tp = ast.TileWorldPos(c, r);
+                float half = TILE_SIZE * 0.5f;
+                Rectangle tile_box = {tp.x - half, tp.y - half, TILE_SIZE, TILE_SIZE};
+
+                if (CheckCollisionRecs(ship_box, tile_box)) {
+                    float impact = Vector2Length(Vector2Subtract(ship.vel, ast.velocity));
+                    if (impact > 20.f) {
+                        ship.TakeDamage((int)(impact * 0.1f));
+                    }
+                    // Push ship away
+                    Vector2 push = Vector2Normalize(Vector2Subtract(ship.pos, tp));
+                    ship.vel = Vector2Add(
+                        Vector2Scale(ship.vel, -0.3f),
+                        Vector2Scale(push, 40.f));
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void MissionScene::CollectNearbyChunks() {
+    for (auto& ch : chunks) {
+        if (!ch.alive) continue;
+        if (ship.cargo >= ship.max_cargo) break;
+        if (Vector2Distance(ch.pos, ship.pos) < COLLECT_RADIUS) {
+            GameState::Get().AddResource(
+                static_cast<ResourceType>(ch.material), 1);
+            ship.cargo++;
+            ch.alive = false;
+        }
+    }
+}
+
+void MissionScene::DrawHUD() const {
+    int sw = GetScreenWidth();
+
+    // HP bar
+    DrawRectangle(10, 10, 200, 16, DARKGRAY);
+    float hp_frac = ship.max_hp > 0 ? ship.hp / (float)ship.max_hp : 0.f;
+    Color hp_col  = hp_frac > 0.5f ? GREEN : (hp_frac > 0.25f ? YELLOW : RED);
+    DrawRectangle(10, 10, (int)(200 * hp_frac), 16, hp_col);
+    DrawRectangleLines(10, 10, 200, 16, WHITE);
+    DrawText(TextFormat("HP %d/%d", ship.hp, ship.max_hp), 14, 12, 12, WHITE);
+
+    // Cargo bar
+    DrawRectangle(10, 32, 200, 16, DARKGRAY);
+    float cargo_frac = ship.max_cargo > 0 ? ship.cargo / (float)ship.max_cargo : 0.f;
+    DrawRectangle(10, 32, (int)(200 * cargo_frac), 16, SKYBLUE);
+    DrawRectangleLines(10, 32, 200, 16, WHITE);
+    DrawText(TextFormat("Cargo %d/%d", ship.cargo, ship.max_cargo), 14, 34, 12, WHITE);
+
+    // Timer
+    int mins = (int)(mission_timer / 60);
+    int secs = (int)(mission_timer) % 60;
+    DrawText(TextFormat("%02d:%02d", mins, secs), sw / 2 - 24, 10, 20, WHITE);
+
+    // Controls hint
+    DrawText("WASD: move | F: FTL escape | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
+
+    // Boundary warning
+    bool near_boundary =
+        ship.pos.x < 100 || ship.pos.x > WORLD_SIZE - 100 ||
+        ship.pos.y < 100 || ship.pos.y > WORLD_SIZE - 100;
+    if (near_boundary && ((int)(mission_timer * 4) % 2 == 0)) {
+        DrawRectangleLinesEx({2, 2, (float)sw - 4, (float)GetScreenHeight() - 4}, 4, RED);
+        DrawText("BOUNDARY WARNING", sw / 2 - 90, 36, 16, RED);
     }
 }
 
@@ -80,17 +197,13 @@ void MissionScene::Draw() {
 
     for (auto& ast : asteroids)
         ast.Draw();
-
     for (auto& c : chunks)
         c.Draw();
+    ship.Draw();
 
     EndMode2D();
 
-    // HUD
-    DrawText("MISSION MODE", 10, 10, 18, WHITE);
-    DrawText("Arrows: pan | Scroll: zoom | ESC: return to base", 10, 35, 14, GRAY);
-    DrawText(TextFormat("Asteroids: %d  Chunks: %d",
-             (int)asteroids.size(), (int)chunks.size()), 10, 55, 14, LIGHTGRAY);
+    DrawHUD();
 }
 
 void MissionScene::Shutdown() {}

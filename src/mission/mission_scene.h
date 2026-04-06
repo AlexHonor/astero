@@ -3,6 +3,7 @@
 #include "core/game_state.h"
 #include "mission/asteroid.h"
 #include "mission/chunk.h"
+#include "mission/ship.h"
 #include <vector>
 
 class Game;
@@ -17,9 +18,17 @@ public:
 private:
     Game* game = nullptr;
 
+    Ship                  ship;
     std::vector<Asteroid> asteroids;
     std::vector<Chunk>    chunks;
     Camera2D              cam = {0};
 
+    float mission_timer = 0.f;
+    float boundary_dmg_timer = 0.f;
+
     void SpawnCallback(Vector2 pos, TileMat mat, Vector2 impulse, bool is_chunk);
+    void CheckShipAsteroidCollision();
+    void CollectNearbyChunks();
+    void DrawHUD() const;
+    void RewireSpawnCallbacks();
 };
