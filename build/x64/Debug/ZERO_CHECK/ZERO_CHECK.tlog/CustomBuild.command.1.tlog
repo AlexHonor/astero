@@ -1,0 +1,10 @@
+^C:\PROJECTS\ASTEROID-RUSH\BUILD\CMAKEFILES\4F020762BEED9E97D36EFB81AC61A12E\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Projects/asteroid-rush -BC:/Projects/asteroid-rush/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Projects/asteroid-rush/build/AsteroidRush.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
