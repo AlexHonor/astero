@@ -14,14 +14,13 @@ Color DustSim::MatDustColor(TileMat m) {
     }
 }
 
-void DustSim::Init(int screen_w, int screen_h) {
-    sw = screen_w; sh = screen_h;
+void DustSim::Init() {
     grid.resize((size_t)GRID_W * GRID_H);
-    tex = LoadRenderTexture(GRID_W, GRID_H);
 }
 
 void DustSim::Shutdown() {
-    UnloadRenderTexture(tex);
+    grid.clear();
+    active.clear();
 }
 
 void DustSim::AddDust(Vector2 world_pos, TileMat mat, Vector2 impulse) {
@@ -126,8 +125,8 @@ float DustSim::DensityAt(Vector2 world_pos) const {
 void DustSim::Draw(Camera2D& cam) {
     if (active.empty()) return;
 
-    BeginTextureMode(tex);
-    ClearBackground({0, 0, 0, 0});
+    BeginMode2D(cam);
+    BeginBlendMode(BLEND_ALPHA);
 
     for (int idx : active) {
         int col = idx % GRID_W;
@@ -137,18 +136,9 @@ void DustSim::Draw(Camera2D& cam) {
 
         Color dc = c.color;
         dc.a = (unsigned char)(c.density * 180.f);
-        DrawPixel(col, row, dc);
+        DrawRectangle(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE, dc);
     }
 
-    EndTextureMode();
-
-    // Scale dust grid to world space and draw with camera transform
-    BeginMode2D(cam);
-    BeginBlendMode(BLEND_ALPHA);
-    // Draw the dust texture scaled to world coordinates
-    Rectangle src = {0, 0, (float)GRID_W, -(float)GRID_H};
-    Rectangle dst = {0, 0, (float)(GRID_W * CELL_SIZE), (float)(GRID_H * CELL_SIZE)};
-    DrawTexturePro(tex.texture, src, dst, {0, 0}, 0.f, WHITE);
     EndBlendMode();
     EndMode2D();
 }

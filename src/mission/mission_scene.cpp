@@ -39,7 +39,7 @@ void MissionScene::Init(Game* g, const ShipConfig& cfg) {
 
     chunks.clear();
     minimap.Init();
-    dust.Init(GetScreenWidth(), GetScreenHeight());
+    dust.Init();
     lighting.Init(GetScreenWidth(), GetScreenHeight());
     ship_light_id    = lighting.AddLight(ship.pos, cfg.flashlight_range,
                                          {255, 240, 200, 200});
