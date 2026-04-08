@@ -1,5 +1,6 @@
 #include "game.h"
 #include "save.h"
+#include "console.h"
 #include "mission/mission_scene.h"
 #include "base/base_scene.h"
 
@@ -8,6 +9,8 @@ Game::Game()  = default;
 Game::~Game() = default;
 
 void Game::Init() {
+    Console::Get();
+
     // Try to load existing save; start fresh if none
     if (!SaveSystem::Load(GameState::Get())) {
         GameState::Get().Reset();
@@ -21,12 +24,21 @@ void Game::Init() {
 }
 
 void Game::Update(float dt) {
-    if (IsKeyPressed(KEY_GRAVE)) show_fps = !show_fps;
+    if (IsKeyPressed(KEY_GRAVE)) {
+        Console::Get().Toggle();
+    }
 
-    switch (current_scene) {
-        case Scene::MISSION: mission->Update(dt); break;
-        case Scene::BASE:    base->Update(dt);    break;
-        default: break;
+    if (Console::Get().IsOpen()) {
+        int key = GetKeyPressed();
+        if (key > 0) Console::Get().HandleInput(key);
+        int ch = GetCharPressed();
+        if (ch > 0) Console::Get().HandleTextInput(ch);
+    } else {
+        switch (current_scene) {
+            case Scene::MISSION: mission->Update(dt); break;
+            case Scene::BASE:    base->Update(dt);    break;
+            default: break;
+        }
     }
 }
 
@@ -37,13 +49,15 @@ void Game::Draw() {
         default: break;
     }
 
-    if (show_fps) {
+    if (Console::Get().GetCVarValue<int>("fps", 0) == 1) {
         float fps = 1.0f / GetFrameTime();
         float ms = GetFrameTime() * 1000.f;
         Color col = fps >= 55.0f ? GREEN : (fps >= 30.0f ? YELLOW : RED);
         DrawText(TextFormat("FPS: %.0f  (%.1f ms)", fps, ms),
-                 GetScreenWidth() - 180, GetScreenHeight() - 22, 14, col);
+                 GetScreenWidth() - 160, 10, 14, col);
     }
+
+    Console::Get().Draw();
 }
 
 void Game::Shutdown() {
