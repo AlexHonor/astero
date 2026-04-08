@@ -12,6 +12,7 @@ Console& Console::Get() {
 
 Console::Console() {
     RegisterCVar("fps", CVar(0));
+    RegisterCVar("fullscreen", CVar(0));
     RegisterCommand("help", [](const std::vector<std::string>&) {
         Console::Get().AddOutput("Commands: help, clear, echo, set");
         Console::Get().AddOutput("Usage: set <cvar> <value>");

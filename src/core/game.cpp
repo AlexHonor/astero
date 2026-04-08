@@ -28,6 +28,11 @@ void Game::Update(float dt) {
         Console::Get().Toggle();
     }
 
+    if (IsKeyPressed(KEY_F11)) {
+        ToggleFullscreen();
+        Console::Get().SetCVar("fullscreen", IsWindowFullscreen() ? "1" : "0");
+    }
+
     if (Console::Get().IsOpen()) {
         int key = GetKeyPressed();
         if (key > 0) Console::Get().HandleInput(key);
