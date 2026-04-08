@@ -20,9 +20,11 @@ public:
     // Callback: called when a chunk or dust should be spawned
     std::function<void(Vector2 pos, TileMat mat, Vector2 impulse, bool is_chunk)> on_spawn;
 
+    Rectangle bounds;
+
     void Init(int w, int h, Vector2 world_center);
     void Update(float dt);
-    void Draw() const;
+    void Draw(Vector2 cam_pos) const;
 
     // Returns world position of center of tile (col, row)
     Vector2 TileWorldPos(int col, int row) const;

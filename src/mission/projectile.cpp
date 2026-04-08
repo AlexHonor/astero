@@ -79,6 +79,10 @@ bool Projectile::CheckTileHit(std::vector<Asteroid>& asteroids) {
     int hit_c = -1, hit_r = -1;
 
     for (auto& ast : asteroids) {
+        Rectangle expanded = {ast.bounds.x - 1, ast.bounds.y - 1, ast.bounds.width + 2, ast.bounds.height + 2};
+        Vector2 ray_end = {prev_pos.x + dir.x, prev_pos.y + dir.y};
+        if (!CheckCollisionPointRec(prev_pos, expanded) && !CheckCollisionPointRec(ray_end, expanded)) continue;
+
         for (int r = 0; r < ast.rows; r++) {
             for (int c = 0; c < ast.cols; c++) {
                 if (ast.cells[r][c].material == TileMat::None) continue;

@@ -202,6 +202,8 @@ void MissionScene::CheckShipAsteroidCollision() {
     Rectangle ship_box = ship.Bounds();
 
     for (auto& ast : asteroids) {
+        if (!CheckCollisionRecs(ship_box, ast.bounds)) continue;
+
         for (int r = 0; r < ast.rows; r++) {
             for (int c = 0; c < ast.cols; c++) {
                 if (ast.cells[r][c].material == TileMat::None) continue;
@@ -373,7 +375,7 @@ void MissionScene::Draw() {
     BeginMode2D(cam);
 
     for (auto& ast : asteroids)
-        ast.Draw();
+        ast.Draw(cam.target);
     for (auto& c : chunks)
         c.Draw();
     ship.Draw();

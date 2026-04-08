@@ -17,6 +17,9 @@ void Asteroid::Init(int w, int h, Vector2 world_center) {
     angular_vel = 0.f;
     velocity    = {0.f, 0.f};
     cells.assign(rows, std::vector<Tile>(cols));
+    float hw = (cols * TILE_SIZE) * 0.5f + TILE_SIZE;
+    float hh = (rows * TILE_SIZE) * 0.5f + TILE_SIZE;
+    bounds = {center.x - hw, center.y - hh, hw * 2.f, hh * 2.f};
 }
 
 Vector2 Asteroid::TileWorldPos(int col, int row) const {
@@ -54,8 +57,14 @@ void Asteroid::Update(float dt) {
     center.y += velocity.y * dt;
 }
 
-void Asteroid::Draw() const {
+void Asteroid::Draw(Vector2 cam_pos) const {
     static const Color fog_color = {30, 30, 35, 255};
+
+    float hw = (float)GetScreenWidth() * 0.5f + TILE_SIZE;
+    float hh = (float)GetScreenHeight() * 0.5f + TILE_SIZE;
+    Rectangle cam = {cam_pos.x - hw, cam_pos.y - hh, hw * 2.f, hh * 2.f};
+
+    if (!CheckCollisionRecs(bounds, cam)) return;
 
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
@@ -64,12 +73,13 @@ void Asteroid::Draw() const {
 
             Vector2 wp = TileWorldPos(c, r);
             float half = TILE_SIZE * 0.5f;
-            // Place rect so its top-left is at wp, pivot at center, rotate with asteroid
-            Rectangle rect = {wp.x - half, wp.y - half, TILE_SIZE, TILE_SIZE};
+            Rectangle tile_rect = {wp.x - half, wp.y - half, TILE_SIZE, TILE_SIZE};
+            if (!CheckCollisionRecs(tile_rect, cam)) continue;
+
             Vector2 origin = {half, half};
 
             Color col = IsTileVisible(c, r) ? MaterialColor(t.material) : fog_color;
-            DrawRectanglePro(rect, origin, rotation * RAD2DEG, col);
+            DrawRectanglePro(tile_rect, origin, rotation * RAD2DEG, col);
         }
     }
 }
