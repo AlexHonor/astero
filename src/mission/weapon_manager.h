@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "mission/bullet_tracer.h"
 #include "mission/projectile.h"
 #include "mission/weapons/explosive.h"
 #include "mission/weapons/catcher.h"
@@ -25,7 +26,8 @@ public:
     int  active_slot = 0;
     bool detonate_mines = false;
 
-    ScanReport scan_report;
+    ScanReport  scan_report;
+    BulletTracer tracer;
 
     // Context set by MissionScene before each update
     std::vector<Asteroid>* asteroids = nullptr;

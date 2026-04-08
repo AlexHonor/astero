@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "raymath.h"
+#include "mission/bullet_tracer.h"
 #include <vector>
 #include <functional>
 
@@ -23,8 +24,13 @@ public:
 
     void Kill() { alive = false; }
 
+    // Set by WeaponManager before first update to enable recording
+    BulletTracer* tracer     = nullptr;
+    BulletTrace   trace_data;
+
 protected:
     Vector2 prev_pos = {0.f, 0.f};
+    bool    tracing  = false;
 
     // Raycast from prev_pos to pos; hits first tile found. Returns true on hit.
     bool CheckTileHit(std::vector<Asteroid>& asteroids);

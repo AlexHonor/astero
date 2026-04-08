@@ -281,7 +281,7 @@ void MissionScene::DrawHUD() const {
     DrawRectangleLines(ftl_x, ftl_y, 150, 30, WHITE);
 
     // Controls hint
-    DrawText("WASD: move | 1-9: weapon | P: resources | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
+    DrawText("WASD: move | 1-9: weapon | P: resources | L: tracer | ESC: abort", 10, GetScreenHeight() - 24, 13, DARKGRAY);
 
     // Boundary warning
     bool near_boundary =

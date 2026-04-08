@@ -34,6 +34,9 @@ void WeaponManager::Init(const ShipConfig& cfg) {
 }
 
 void WeaponManager::HandleInput(Vector2 ship_pos_val, Camera2D& cam) {
+    // Trajectory visualizer toggle
+    if (IsKeyPressed(KEY_L)) tracer.enabled = !tracer.enabled;
+
     // Weapon slot switching
     for (int i = 0; i < 9; i++)
         if (IsKeyPressed(KEY_ONE + i)) active_slot = i;
@@ -75,6 +78,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->penetration = 1 + pen_bonus;
             p->damage  = 15;
             p->lifetime = 3.f;
+            p->tracer  = &tracer;
             projectiles.push_back(std::move(p));
             break;
         }
@@ -85,6 +89,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->penetration = 4 + pen_bonus;
             p->damage  = 10;
             p->lifetime = 2.f;
+            p->tracer  = &tracer;
             projectiles.push_back(std::move(p));
             break;
         }
@@ -96,6 +101,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->damage  = 5;
             p->lifetime = 4.f;
             p->frag_count = 6;
+            p->tracer  = &tracer;
             p->spawn_fragment = [this](Vector2 pos, Vector2 vel) {
                 SpawnFragment(pos, vel);
             };
@@ -112,6 +118,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->exp_radius = 80.f;
             p->exp_damage = 40;
             p->explosions = &explosions;
+            p->tracer  = &tracer;
             projectiles.push_back(std::move(p));
             break;
         }
@@ -123,6 +130,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->damage  = 5;
             p->lifetime = 4.f;
             p->explosions = &explosions;
+            p->tracer  = &tracer;
             p->spawn_sub = [this](Vector2 pos, Vector2 vel, float er, int ed) {
                 SpawnSubMunition(pos, vel, er, ed);
             };
@@ -140,6 +148,7 @@ void WeaponManager::Fire(int slot_idx, Vector2 origin, Vector2 direction) {
             p->exp_radius = 120.f;
             p->exp_damage = 60;
             p->explosions = &explosions;
+            p->tracer  = &tracer;
             projectiles.push_back(std::move(p));
             break;
         }
@@ -244,6 +253,7 @@ void WeaponManager::Draw() const {
         p->Draw();
     for (auto& e : explosions)
         e.Draw();
+    tracer.Draw();
 }
 
 void WeaponManager::DrawHUD() const {
@@ -284,6 +294,11 @@ void WeaponManager::DrawHUD() const {
         } else {
             DrawRectangle(x, sy + slot_h - 4, slot_w, 4, GREEN);
         }
+    }
+
+    // Trajectory tracer indicator
+    if (tracer.enabled) {
+        DrawText("[L] TRACER ON", sw - 140, 60, 13, {57, 255, 20, 220});
     }
 
     // Scan report popup

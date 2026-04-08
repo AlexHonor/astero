@@ -7,14 +7,37 @@ void Projectile::Update(float dt, std::vector<Asteroid>& asteroids,
     (void)chunks;
     if (!alive) return;
 
+    // Start tracing on first update
+    if (tracer && !tracing) {
+        tracing = true;
+        trace_data.path.push_back(pos);  // record spawn position
+    }
+
     lifetime -= dt;
-    if (lifetime <= 0.f) { Kill(); return; }
+    if (lifetime <= 0.f) {
+        if (tracing) {
+            trace_data.events.push_back({TraceEventType::Expired, pos, 0});
+            trace_data.path.push_back(pos);
+            tracer->FinishTrace(std::move(trace_data));
+            tracing = false;
+        }
+        Kill();
+        return;
+    }
 
     prev_pos = pos;
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
 
     CheckTileHit(asteroids);
+
+    if (tracing) {
+        trace_data.path.push_back(pos);
+        if (!alive) {
+            tracer->FinishTrace(std::move(trace_data));
+            tracing = false;
+        }
+    }
 }
 
 void Projectile::Draw() const {
@@ -88,10 +111,16 @@ bool Projectile::CheckTileHit(std::vector<Asteroid>& asteroids) {
             float dot = Vector2DotProduct(vel, normal);
             vel.x = (vel.x - 2*dot*normal.x) * 0.7f;
             vel.y = (vel.y - 2*dot*normal.y) * 0.7f;
+            if (tracing)
+                trace_data.events.push_back({TraceEventType::Ricochet, pos, 0});
         } else {
+            if (tracing)
+                trace_data.events.push_back({TraceEventType::Blocked, pos, 0});
             Kill();
         }
     } else {
+        if (tracing)
+            trace_data.events.push_back({TraceEventType::Damage, pos, damage});
         hit_ast->DamageTile(hit_c, hit_r, damage, penetration);
         Kill();
     }
