@@ -38,10 +38,10 @@ void Game::Draw() {
     }
 
     if (show_fps) {
-        int fps = GetFPS();
-        float ms = 1000.f / (fps > 0 ? fps : 1);
-        Color col = fps >= 55 ? GREEN : (fps >= 30 ? YELLOW : RED);
-        DrawText(TextFormat("FPS: %d  (%.1f ms)", fps, ms),
+        float fps = 1.0f / GetFrameTime();
+        float ms = GetFrameTime() * 1000.f;
+        Color col = fps >= 55.0f ? GREEN : (fps >= 30.0f ? YELLOW : RED);
+        DrawText(TextFormat("FPS: %.0f  (%.1f ms)", fps, ms),
                  GetScreenWidth() - 180, GetScreenHeight() - 22, 14, col);
     }
 }
